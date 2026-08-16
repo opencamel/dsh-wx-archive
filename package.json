@@ -1,24 +1,30 @@
 {
   "name": "dsh-wx-archive",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DSH tool for archiving and reading WeChat Official Account articles via 2100laike WeChat Archive (wx.2100laike.com)",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "lib/index.js",
+  "author": "iactionfan <263188177+iactionfan@users.noreply.github.com>",
+  "license": "MIT",
   "files": [
-    "dist",
+    "lib",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@deepseek-ai/cordis": "4.0.1",
-    "@deepseek-ai/dsh-tools": "0.1.0-rc.6",
-    "@deepseek-ai/schemastery": "3.18.1"
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.0-rc.6",
+    "@deepseek-ai/schemastery": ">=3.0.0"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-tools": "0.1.0-rc.6",
+    "@deepseek-ai/schemastery": "3.18.1",
     "esbuild": "^0.21.0",
     "typescript": "^5.8.0"
   },
