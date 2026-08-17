@@ -14,7 +14,7 @@
 dsh plugin add github:opencamel/dsh-wx-archive#v0.1.0
 ```
 
-产物已含编译好的 `dist/`，git 安装无需执行构建脚本。
+产物已含编译好的 `lib/index.js`，git 安装无需执行构建脚本。
 
 ## 配置
 

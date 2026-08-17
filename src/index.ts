@@ -118,7 +118,8 @@ export function apply(ctx: Context, config: Config) {
         url: {
           type: "string",
           required: true,
-          description: "微信公众号文章链接（https://mp.weixin.qq.com/s/...）",
+          description:
+            "微信公众号文章永久链接（https://mp.weixin.qq.com/s/...）。微信内复制的临时分享链接（src=11 + timestamp/signature）会被服务端拒绝（422 WX_TEMPORARY_LINK）",
         },
         refresh: {
           type: "boolean",
