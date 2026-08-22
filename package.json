@@ -1,6 +1,6 @@
 {
   "name": "dsh-wx-archive",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "DSH tool for archiving and reading WeChat Official Account articles via 2100laike WeChat Archive (wx.2100laike.com)",
   "type": "module",
   "main": "lib/index.js",

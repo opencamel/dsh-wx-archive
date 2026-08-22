@@ -19,12 +19,12 @@
 
 ```sh
 # Web GUI 用户（dsh web 即 web profile）
-dsh plugin --profile web add github:opencamel/dsh-wx-archive#v0.1.2
+dsh plugin --profile web add github:opencamel/dsh-wx-archive#v0.1.3
 # 纯 CLI 用户（headless profile：dsh --profile headless "任务描述" 一次性执行并退出）
-dsh plugin --profile headless add github:opencamel/dsh-wx-archive#v0.1.2
+dsh plugin --profile headless add github:opencamel/dsh-wx-archive#v0.1.3
 ```
 
-`#v0.1.2` 为当前最新 tag；新版本见 [GitHub Releases](https://github.com/opencamel/dsh-wx-archive/releases)，安装时替换为最新 tag 即可。产物已含编译好的 `lib/index.js`，git 安装无需执行构建脚本。
+`#v0.1.3` 为当前最新 tag；新版本见 [GitHub Releases](https://github.com/opencamel/dsh-wx-archive/releases)，安装时替换为最新 tag 即可。产物已含编译好的 `lib/index.js`，git 安装无需执行构建脚本。
 
 除 `github:` 外，本地源码目录或 tarball 等 pnpm 支持的安装源同样可用（相对路径按执行命令时的当前目录解析）：
 
@@ -76,10 +76,16 @@ dsh --profile <name> --dump-config | grep -A2 wx-archive
 
 ### 额度与 PAT
 
-匿名使用每个插件实例 **8 次/天**（重启后重新计数）。在 [open.2100laike.com](https://open.2100laike.com) 创建 PAT（`pat_2100_` 前缀）填入 `token` 后：
+匿名使用每个插件实例 **8 次/天**（重启后重新计数）；额度用尽时错误信息自带注册引导。注册**真实账户**并创建 PAT 填入 `token`：
 
-- 额度提升到 **100 次/天**
+1. 在 [app.2100laike.com/register](https://app.2100laike.com/register) 注册账户（邮箱验证码）；
+2. 登录后到主站 [设置 → 开发者](https://app.2100laike.com/settings/developer) 创建 PAT（`pat_2100_` 前缀，scope 至少 `api:write`）；
+3. 把 PAT 填入本插件配置的 `token`（见上文「配置」），改动热生效。
+
+- 额度提升到 **100 次/天**（`GET /v1/archive/quota` 可查当日剩余，wx / x 存档共享同一计数器，一个 PAT 两站通用）
 - 解锁 `refresh: true` 强制重抓（受服务端 24 小时冷却保护，冷却内跳过且不耗额度）
+
+> 网页端用户（wx.2100laike.com）注册后直接登录即提升额度，无需 PAT。
 
 ## 工具契约
 
@@ -95,7 +101,7 @@ dsh --profile <name> --dump-config | grep -A2 wx-archive
 
 | 错误码 | 含义 / 处置 |
 |--------|-------------|
-| `RATE_LIMITED` | 当日额度耗尽 → 配置 PAT 提升额度 |
+| `RATE_LIMITED` | 当日额度耗尽 → 注册真实账户（app.2100laike.com/register）并配置 PAT，提升至 100 次/天 |
 | `FORCE_NOT_ALLOWED` | `refresh` 强制重抓需要 PAT → 配置 `token` |
 | `WX_TEMPORARY_LINK`（422） | 传入的是微信临时分享链接（`src=11` 带签名）→ 改用文章永久链接 `https://mp.weixin.qq.com/s/...` |
 
@@ -113,8 +119,8 @@ dsh --profile <name> --dump-config | grep -A2 wx-archive
 ## 升级 / 卸载
 
 ```sh
-# 覆盖升级到新 tag（如 v0.1.3）
-dsh plugin --profile <name> add github:opencamel/dsh-wx-archive#v0.1.3
+# 覆盖升级到新 tag（如 v0.1.4）
+dsh plugin --profile <name> add github:opencamel/dsh-wx-archive#v0.1.4
 # 卸载
 dsh plugin --profile <name> remove dsh-wx-archive
 ```

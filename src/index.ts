@@ -21,7 +21,7 @@ export interface Config {
 
 export const Config: Schema<Config> = Schema.object({
   apiBaseUrl: Schema.string().default("https://api.2100laike.com").description("2100laike API 基础地址"),
-  token: Schema.string().default("").description("可选 PAT（pat_2100_ 前缀）。配置后额度从匿名 8 次/天提升到 100 次/天，并可用 refresh 强制重抓"),
+  token: Schema.string().default("").description("可选 PAT（pat_2100_ 前缀，注册账户后在 app.2100laike.com/settings/developer 创建）。配置后额度从匿名 8 次/天提升到 100 次/天，并可用 refresh 强制重抓"),
   waitTimeoutSec: Schema.number().default(60).description("新文章提交后等待抓取完成的轮询上限（秒）"),
   pollIntervalSec: Schema.number().default(2).description("轮询间隔（秒）"),
   maxContentChars: Schema.number().default(30000).description("返回 Markdown 的最大字符数，超出截断并附快照链接"),
@@ -99,13 +99,14 @@ export function apply(ctx: Context, config: Config) {
       body: init?.body === undefined ? undefined : JSON.stringify(init.body),
     });
     const json: any = await res.json().catch(() => null);
-    if (!res.ok || !json?.success) {
-      const code = json?.error?.code || "HTTP_ERROR";
-      let message = json?.error?.message || `HTTP ${res.status} 请求 ${baseUrl}${path} 失败`;
-      if (code === "RATE_LIMITED") message += "（可在插件配置中设置 PAT token 提升额度）";
-      if (code === "FORCE_NOT_ALLOWED") message += "（refresh 强制重抓需要在插件配置中设置 PAT token）";
-      throw new Error(`[wx-archive ${code}] ${message}`);
-    }
+      if (!res.ok || !json?.success) {
+        const code = json?.error?.code || "HTTP_ERROR";
+        let message = json?.error?.message || `HTTP ${res.status} 请求 ${baseUrl}${path} 失败`;
+        // 服务端 RATE_LIMITED 消息自带注册引导（register_url）；这里只补插件侧落位步骤
+        if (code === "RATE_LIMITED") message += "（注册后创建的 PAT 填入插件配置 token 即生效，无需重启）";
+        if (code === "FORCE_NOT_ALLOWED") message += "（refresh 需要 PAT：注册账户 app.2100laike.com/register → 在 app.2100laike.com/settings/developer 创建 PAT → 填入插件配置 token）";
+        throw new Error(`[wx-archive ${code}] ${message}`);
+      }
     return json.data as T;
   };
 
