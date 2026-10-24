@@ -1,6 +1,8 @@
-// dsh-wx-archive — 微信公众号文章存档 DSH 工具
-// 通过 2100laike 微信存档 API（wx.2100laike.com）提交/读取文章全文快照：
+// dsh-wx-archive — 微信公众号文章/贴图存档 DSH 工具
+// 通过 2100laike 微信存档 API（wx.2100laike.com）提交/读取文章与贴图全文快照：
 // 未存档则提交并等待抓取完成，已存档直接返回最新版 Markdown（去重不耗额度）。
+// 贴图（图片消息，item_show_type=8）与文章共用 mp.weixin.qq.com/s/ 链接格式，
+// 服务端抓取后自动判定品类并在返回中标注 content_kind（article | sticker）。
 
 import { randomUUID } from "node:crypto";
 
@@ -48,6 +50,7 @@ interface ArchiveDetail {
   snapshot_url: string | null;
   latest_version: number | null;
   created_at: string;
+  content_kind?: string | null;
 }
 
 interface ArchiveContent {
@@ -62,6 +65,7 @@ interface ArchiveOutput {
   url: string;
   title: string;
   author: string;
+  content_kind: "article" | "sticker" | string;
   version: number | null;
   fetched_at: string | null;
   deleted: boolean;
@@ -98,7 +102,11 @@ export function apply(ctx: Context, config: Config) {
       headers,
       body: init?.body === undefined ? undefined : JSON.stringify(init.body),
     });
-    const json: any = await res.json().catch(() => null);
+    const json = (await res.json().catch(() => null)) as {
+      success?: boolean;
+      error?: { code?: string; message?: string } | null;
+      data?: unknown;
+    } | null;
       if (!res.ok || !json?.success) {
         const code = json?.error?.code || "HTTP_ERROR";
         let message = json?.error?.message || `HTTP ${res.status} 请求 ${baseUrl}${path} 失败`;
@@ -114,13 +122,13 @@ export function apply(ctx: Context, config: Config) {
     defineTool({
       name: "wx_archive",
       description:
-        "存档并读取微信公众号文章全文。提交 mp.weixin.qq.com 链接：未存档过的文章会先抓取（图片转存、防删文、防裂链），已存档的直接返回最新版全文 Markdown（去重命中不消耗额度）。需要读取微信文章内容时使用本工具，而不是直接抓取网页。",
+        "存档并读取微信公众号文章与贴图全文。提交 mp.weixin.qq.com 链接：未存档过的内容会先抓取（图片转存、防删文、防裂链），已存档的直接返回最新版全文 Markdown（去重命中不消耗额度）。普通图文文章与贴图（图片消息，标题+图片列表形态）的链接格式相同，服务端抓取后自动区分，返回 content_kind（article=图文文章，sticker=贴图）。需要读取微信内容时使用本工具，而不是直接抓取网页。",
       parameters: {
         url: {
           type: "string",
           required: true,
           description:
-            "微信公众号文章永久链接（https://mp.weixin.qq.com/s/...）。微信内复制的临时分享链接（src=11 + timestamp/signature）会被服务端拒绝（422 WX_TEMPORARY_LINK）",
+            "微信公众号永久短链（https://mp.weixin.qq.com/s/...，即文章页右上角「…」→「复制链接」所得），图文文章与贴图（图片消息）均为此格式，无需区分。临时分享链接（src=11 + timestamp/signature）与 __biz 参数长链（/s?__biz=…）都会被服务端拒绝（422 WX_TEMPORARY_LINK / WX_LONG_LINK）——若手里只有 __biz 长链或元数据（biz/mid/sn），请勿拼装提交",
         },
         refresh: {
           type: "boolean",
@@ -131,8 +139,9 @@ export function apply(ctx: Context, config: Config) {
         schema: { type: "json" },
         render: (_args, value) => {
           const out = value as unknown as ArchiveOutput;
+          const kindLabel = out.content_kind === "sticker" ? "贴图" : "文章";
           const lines: string[] = [
-            `[微信存档] ${out.title || "(未命名)"}`,
+            `[微信存档·${kindLabel}] ${out.title || "(未命名)"}`,
             `作者: ${out.author || "—"} · 版本 v${out.version ?? "?"} · 抓取于 ${out.fetched_at || "—"} · 存档ID ${out.archive_id}`,
           ];
           if (out.deleted) lines.push("⚠ 原文已被发布者删除，以下为存档内容");
@@ -192,6 +201,7 @@ export function apply(ctx: Context, config: Config) {
           url: detail?.url || url,
           title: detail?.title || submitted.title || "",
           author: detail?.author_name || "",
+          content_kind: detail?.content_kind || "article",
           version: detail?.latest_version ?? null,
           fetched_at: content?.fetched_at || submitted.version?.fetched_at || null,
           deleted: Boolean(detail?.deleted_at || submitted.deleted_at),

@@ -1,12 +1,13 @@
 # dsh-wx-archive
 
-[DSH](https://github.com/deepseek-ai/deepseek-harness)（DeepSeek Harness）工具插件：为 Agent 提供**微信公众号文章存档与全文读取**能力，由 [2100laike 微信存档](https://wx.2100laike.com)提供服务。
+[DSH](https://github.com/deepseek-ai/deepseek-harness)（DeepSeek Harness）工具插件：为 Agent 提供**微信公众号文章与贴图存档及全文读取**能力，由 [2100laike 微信存档](https://wx.2100laike.com)提供服务。
 
 遇到 `mp.weixin.qq.com` 链接时，Agent 用 `wx_archive` 工具代替直接抓网页：
 
-- **未存档的文章**：自动提交存档（图片转存到 CDN 不裂链、原文删除不受影响），等待抓取完成后返回全文 Markdown
-- **已存档的文章**：直接返回最新版全文（去重命中，不消耗额度）
-- **版本历史**：文章被修改过可带 `refresh: true` 重抓新版本
+- **未存档的内容**：自动提交存档（图片转存到 CDN 不裂链、原文删除不受影响），等待抓取完成后返回全文 Markdown
+- **已存档的内容**：直接返回最新版全文（去重命中，不消耗额度）
+- **版本历史**：内容被修改过可带 `refresh: true` 重抓新版本
+- **文章与贴图自动区分**：贴图（公众号"图片消息"，标题+图片列表形态）与图文文章的永久链接格式完全相同（`mp.weixin.qq.com/s/...`），服务端抓取后自动判定品类，返回 `content_kind`（`article` = 图文文章，`sticker` = 贴图），贴图快照为摘要文字 + 图片清单
 
 ## 环境要求
 
@@ -19,12 +20,12 @@
 
 ```sh
 # Web GUI 用户（dsh web 即 web profile）
-dsh plugin --profile web add github:opencamel/dsh-wx-archive#v0.1.3
+dsh plugin --profile web add github:opencamel/dsh-wx-archive#v0.2.0
 # 纯 CLI 用户（headless profile：dsh --profile headless "任务描述" 一次性执行并退出）
-dsh plugin --profile headless add github:opencamel/dsh-wx-archive#v0.1.3
+dsh plugin --profile headless add github:opencamel/dsh-wx-archive#v0.2.0
 ```
 
-`#v0.1.3` 为当前最新 tag；新版本见 [GitHub Releases](https://github.com/opencamel/dsh-wx-archive/releases)，安装时替换为最新 tag 即可。产物已含编译好的 `lib/index.js`，git 安装无需执行构建脚本。
+`#v0.2.0` 为当前最新 tag；新版本见 [GitHub Releases](https://github.com/opencamel/dsh-wx-archive/releases)，安装时替换为最新 tag 即可。产物已含编译好的 `lib/index.js`，git 安装无需执行构建脚本。
 
 除 `github:` 外，本地源码目录或 tarball 等 pnpm 支持的安装源同样可用（相对路径按执行命令时的当前目录解析）：
 
@@ -93,7 +94,9 @@ dsh --profile <name> --dump-config | grep -A2 wx-archive
 |----|----|
 | 名称 | `wx_archive` |
 | 参数 | `url`（string，必填）· `refresh`（boolean，默认 false） |
-| 返回 | `{ archive_id, url, title, author, version, fetched_at, deleted, refresh_skipped, snapshot_url, truncated, markdown, note }` |
+| 返回 | `{ archive_id, url, title, author, content_kind, version, fetched_at, deleted, refresh_skipped, snapshot_url, truncated, markdown, note }` |
+
+`content_kind`：`article`（图文文章）| `sticker`（贴图/图片消息）。两者链接格式相同，由服务端抓取后判定；贴图的 Markdown 为摘要文字 + 依次编号的图片清单。
 
 ### 错误码
 
@@ -104,12 +107,13 @@ dsh --profile <name> --dump-config | grep -A2 wx-archive
 | `RATE_LIMITED` | 当日额度耗尽 → 注册真实账户（app.2100laike.com/register）并配置 PAT，提升至 100 次/天 |
 | `FORCE_NOT_ALLOWED` | `refresh` 强制重抓需要 PAT → 配置 `token` |
 | `WX_TEMPORARY_LINK`（422） | 传入的是微信临时分享链接（`src=11` 带签名）→ 改用文章永久链接 `https://mp.weixin.qq.com/s/...` |
+| `WX_LONG_LINK`（422） | 传入的是 `__biz` 参数长链（`/s?__biz=…`，受微信风控拦截无法抓取）→ 在文章页「复制链接」改用短链；勿用 biz/mid/sn 元数据拼装链接 |
 
 ### 延迟预期与软失败（不报错，体现在返回的 `note`）
 
-- **已存档文章**：去重命中，立即返回，不消耗额度
-- **新文章**：需现场抓取，插件轮询等待，最长 `waitTimeoutSec`（默认 60 秒）；超时返回 `note`「抓取尚未完成」，**稍后再次调用即可读取**（此时已入档，秒回且不重复扣额度）
-- **已存档后被删文的文章**：正常返回存档内容，`deleted: true` 并注明原文已被发布者删除
+- **已存档内容**：去重命中，立即返回，不消耗额度
+- **新内容**：需现场抓取，插件轮询等待，最长 `waitTimeoutSec`（默认 60 秒）；超时返回 `note`「抓取尚未完成」，**稍后再次调用即可读取**（此时已入档，秒回且不重复扣额度）
+- **已存档后被删文的内容**：正常返回存档内容，`deleted: true` 并注明原文已被发布者删除
 - **正文快照读取失败**（服务端快照缺失，`NO_CONTENT`）：`note` 提示稍后重试，或访问 `snapshot_url`
 
 ### 截断与全文
@@ -119,7 +123,7 @@ dsh --profile <name> --dump-config | grep -A2 wx-archive
 ## 升级 / 卸载
 
 ```sh
-# 覆盖升级到新 tag（如 v0.1.4）
+# 覆盖升级到新 tag（如 v0.2.1）
 dsh plugin --profile <name> add github:opencamel/dsh-wx-archive#v0.1.4
 # 卸载
 dsh plugin --profile <name> remove dsh-wx-archive
