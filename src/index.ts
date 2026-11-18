@@ -96,11 +96,12 @@ export function apply(ctx: Context, config: Config) {
     headers["x-2100-anonymous-id"] = anonId;
   }
 
-  const request = async <T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> => {
+  const request = async <T>(path: string, init?: { method?: string; body?: unknown }, signal?: AbortSignal): Promise<T> => {
     const res = await fetch(`${baseUrl}${path}`, {
       method: init?.method || "GET",
       headers,
       body: init?.body === undefined ? undefined : JSON.stringify(init.body),
+      signal,
     });
     const json = (await res.json().catch(() => null)) as {
       success?: boolean;
@@ -152,11 +153,17 @@ export function apply(ctx: Context, config: Config) {
           return [{ type: "text", text: lines.join("\n") }];
         },
       },
-      async execute({ url, refresh }) {
+      // 协作式超时预算（声明性元数据，注册表不强执，供 timeout policy 参考）：
+      // 轮询上限 + 读正文余量
+      timeoutMs: (Math.max(1, config.waitTimeoutSec) + 15) * 1000,
+      async execute({ url, refresh }, exec) {
+        // 契约要求异步工具必须观测取消信号（0.1.0-rc.6 起）：透传给 fetch，
+        // 轮询间隙检查——用户取消后立刻停稳，由注册表按 ABORTED 定性结果
+        const signal = exec.signal;
         const submitted = await request<SubmitResult>("/v1/archive", {
           method: "POST",
           body: { url, force: refresh === true },
-        });
+        }, signal);
         const archiveId = submitted.archive_id;
 
         let detail: ArchiveDetail | null = null;
@@ -164,17 +171,19 @@ export function apply(ctx: Context, config: Config) {
         const pollMs = Math.max(1, config.pollIntervalSec) * 1000;
         // 新提交是异步抓取（pending）：轮询直到出现版本或超时；dedup/已有版本则一次即过。
         for (;;) {
-          detail = await request<ArchiveDetail>(`/v1/archives/${encodeURIComponent(archiveId)}`);
+          if (signal.aborted) break;
+          detail = await request<ArchiveDetail>(`/v1/archives/${encodeURIComponent(archiveId)}`, undefined, signal);
           if (detail.latest_version) break;
           if (Date.now() + pollMs > deadline) break;
           await sleep(pollMs);
         }
 
         let content: ArchiveContent | null = null;
-        if (detail?.latest_version) {
+        if (detail?.latest_version && !signal.aborted) {
           try {
-            content = await request<ArchiveContent>(`/v1/archives/${encodeURIComponent(archiveId)}/content`);
-          } catch {
+            content = await request<ArchiveContent>(`/v1/archives/${encodeURIComponent(archiveId)}/content`, undefined, signal);
+          } catch (error) {
+            if (signal.aborted) throw error; // 取消导致的中断不吞成 NO_CONTENT
             content = null; // NO_CONTENT：抓取失败或快照缺失
           }
         }

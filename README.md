@@ -11,7 +11,7 @@
 
 ## 环境要求
 
-- **dsh ≥ 0.1.0-rc.6**（插件 peer 依赖 `@deepseek-ai/dsh-tools >= 0.1.0-rc.6`；`dsh --version` 查看，旧版 dsh 可能无法解析 peer）
+- **dsh ≥ 0.1.0-rc.6**（插件 peer 依赖 `@deepseek-ai/dsh-tools >= 0.1.0-rc.6`；`dsh --version` 查看，旧版 dsh 可能无法解析 peer。已对照 dsh 0.2.2-rc 类型验证兼容，0.2.x 同样满足 peer 区间）
 - **PATH 上有 pnpm**（`dsh plugin` 底层转发给 pnpm 执行，缺失会报 127 / `command not found`）
 
 ## 安装
@@ -20,12 +20,12 @@
 
 ```sh
 # Web GUI 用户（dsh web 即 web profile）
-dsh plugin --profile web add github:opencamel/dsh-wx-archive#v0.2.0
+dsh plugin --profile web add github:opencamel/dsh-wx-archive#v0.2.1
 # 纯 CLI 用户（headless profile：dsh --profile headless "任务描述" 一次性执行并退出）
-dsh plugin --profile headless add github:opencamel/dsh-wx-archive#v0.2.0
+dsh plugin --profile headless add github:opencamel/dsh-wx-archive#v0.2.1
 ```
 
-`#v0.2.0` 为当前最新 tag；新版本见 [GitHub Releases](https://github.com/opencamel/dsh-wx-archive/releases)，安装时替换为最新 tag 即可。产物已含编译好的 `lib/index.js`，git 安装无需执行构建脚本。
+`#v0.2.1` 为当前最新 tag；新版本见 [GitHub Releases](https://github.com/opencamel/dsh-wx-archive/releases)，安装时替换为最新 tag 即可。产物已含编译好的 `lib/index.js`，git 安装无需执行构建脚本。
 
 除 `github:` 外，本地源码目录或 tarball 等 pnpm 支持的安装源同样可用（相对路径按执行命令时的当前目录解析）：
 
@@ -123,8 +123,8 @@ dsh --profile <name> --dump-config | grep -A2 wx-archive
 ## 升级 / 卸载
 
 ```sh
-# 覆盖升级到新 tag（如 v0.2.1）
-dsh plugin --profile <name> add github:opencamel/dsh-wx-archive#v0.1.4
+# 覆盖升级到新 tag（如 v0.2.2）
+dsh plugin --profile <name> add github:opencamel/dsh-wx-archive#v0.2.2
 # 卸载
 dsh plugin --profile <name> remove dsh-wx-archive
 ```
